@@ -4,6 +4,8 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <div>Time per frame: <span id="ms-per-frame">-</span> ms</div>
+    <div>Frames per second: <span id="fps">-</span></div>
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
     <script type="module">
       // Use ES module import syntax to import functionality from the module
@@ -13,7 +15,7 @@
       // will "boot" the module and make it ready to use. Currently browsers
       // don't support natively imported WebAssembly as an ES module, but
       // eventually the manual initialization won't be required!
-      import init, { Rgba, Grid } from './pkg/rust_wasm_playground.js';
+      import init, { Grid } from './pkg/rust_wasm_playground.js';
 
       async function run() {
         // First up we need to actually load the wasm file, so we use the
@@ -55,6 +57,14 @@
 
         const ctx = canvas.getContext("2d");
 
+        let diffs = Array.from({ length: 60 }, () => 0);
+        let start = performance.now();
+        let end = start;
+        let frame = 0;
+
+        const ms_display = document.getElementById("ms-per-frame");
+        const fps_display = document.getElementById("fps");
+
         const renderLoop = () => {
           grid.tick();
 
@@ -64,6 +74,16 @@
 
           ctx.putImageData(image, 0, 0);
 
+          end = performance.now();
+          diffs[frame] = end - start;
+          frame = (frame + 1) % 60;
+          start = end;
+
+          if (frame % 60 === 0) {
+            let ms = diffs.reduce((a, b) => a + b, 0) / 60;
+            ms_display.textContent = ms.toFixed(2);
+            fps_display.textContent = (1 / ms * 1000).toFixed(2);
+          }
           // window.setTimeout(renderLoop, 50);
           requestAnimationFrame(renderLoop);
         }
