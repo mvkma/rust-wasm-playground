@@ -123,15 +123,13 @@ impl FlowField {
 
 #[wasm_bindgen]
 impl Grid {
-    pub fn new() -> Grid {
-        let width = 800;
-        let height = 800;
+    pub fn new(width: u32, height: u32, nparticles: u32, nsamples: u32, lifetime: u32) -> Grid {
 
         let pixels: Vec<Rgba> = (0..width * height)
             .map(|_| Rgba::from_u32(0x000000ff))
             .collect();
 
-        let field = FlowField::new(200, 400);
+        let field = FlowField::new(nparticles, nsamples);
 
         Grid {
             width: width,
@@ -139,7 +137,7 @@ impl Grid {
             pixels: pixels,
             flowfield: field,
             nticks: 0,
-            lifetime: 1800,
+            lifetime: lifetime,
         }
     }
 

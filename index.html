@@ -47,23 +47,33 @@
         const wasm_exports = await init();
         const memory = wasm_exports.memory;
 
-        const grid = Grid.new();
-        const width = grid.width();
-        const height = grid.height();
+        const ms_display = document.getElementById("ms-per-frame");
+        const fps_display = document.getElementById("fps");
 
         const canvas = document.getElementById("canvas");
-        canvas.height = height;
-        canvas.width = width;
-
+        canvas.height = 800;
+        canvas.width = 800;
         const ctx = canvas.getContext("2d");
+
+        const nparticles = 200;
+        const nsamples = 400;
+        const lifetime = 1800;
+
+        const grid = Grid.new(canvas.width, canvas.height, nparticles, nsamples, lifetime);
+        const width = grid.width();
+        const height = grid.height();
 
         let diffs = Array.from({ length: 60 }, () => 0);
         let start = performance.now();
         let end = start;
         let frame = 0;
 
-        const ms_display = document.getElementById("ms-per-frame");
-        const fps_display = document.getElementById("fps");
+        let paused = true;
+
+        canvas.addEventListener("click", (el, ev) => {
+          paused = !paused;
+          requestAnimationFrame(renderLoop);
+        })
 
         const renderLoop = () => {
           grid.tick();
@@ -84,11 +94,12 @@
             ms_display.textContent = ms.toFixed(2);
             fps_display.textContent = (1 / ms * 1000).toFixed(2);
           }
-          // window.setTimeout(renderLoop, 50);
-          requestAnimationFrame(renderLoop);
+
+          if (!paused) {
+            requestAnimationFrame(renderLoop);
+          }
         }
 
-        // renderLoop();
         requestAnimationFrame(renderLoop);
       }
 
