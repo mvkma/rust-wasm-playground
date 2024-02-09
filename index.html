@@ -4,6 +4,7 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <select id="function-select"></select>
     <div>Time per frame: <span id="ms-per-frame">-</span> ms</div>
     <div>Frames per second: <span id="fps">-</span></div>
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
@@ -16,6 +17,22 @@
       // don't support natively imported WebAssembly as an ES module, but
       // eventually the manual initialization won't be required!
       import init, { Grid } from './pkg/rust_wasm_playground.js';
+
+      // Some elements we will need
+      const ms_display = document.getElementById("ms-per-frame");
+      const fps_display = document.getElementById("fps");
+      const func_select = document.getElementById("function-select");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Parameters
+      canvas.height = 800;
+      canvas.width = 800;
+      const width = canvas.width;
+      const height = canvas.height;
+      const nparticles = 200;
+      const nsamples = 400;
+      const lifetime = 1800;
 
       async function run() {
         // First up we need to actually load the wasm file, so we use the
@@ -46,22 +63,25 @@
         // modes
         const wasm_exports = await init();
         const memory = wasm_exports.memory;
+        let grid = undefined;
 
-        const ms_display = document.getElementById("ms-per-frame");
-        const fps_display = document.getElementById("fps");
+        func_select.addEventListener("input", (ev) => {
+          let func = func_select.selectedIndex;
 
-        const canvas = document.getElementById("canvas");
-        canvas.height = 800;
-        canvas.width = 800;
-        const ctx = canvas.getContext("2d");
+          grid.set_flow_function(func);
+        });
 
-        const nparticles = 200;
-        const nsamples = 400;
-        const lifetime = 1800;
+        grid = Grid.new(width, height, nparticles, nsamples, lifetime, 0);
 
-        const grid = Grid.new(canvas.width, canvas.height, nparticles, nsamples, lifetime);
-        const width = grid.width();
-        const height = grid.height();
+        // Populate dropdown
+        let i = 0;
+        for (const f of grid.fields()) {
+          const op = document.createElement("option");
+          op.value = i.toString();
+          op.innerText = f.name();
+          func_select.appendChild(op);
+          i++;
+        }
 
         let diffs = Array.from({ length: 60 }, () => 0);
         let start = performance.now();

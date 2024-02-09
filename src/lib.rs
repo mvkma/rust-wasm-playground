@@ -5,6 +5,8 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
+use crate::utils::set_panic_hook;
+
 pub struct Vec2D {
     x: f64,
     y: f64,
@@ -13,7 +15,6 @@ pub struct Vec2D {
 pub struct FlowField {
     particles: Vec<Vec2D>,
     lifetimes: Vec<f64>,
-    nparticles: u32,
     velocities: Vec<Vec<Vec2D>>,
     nsamples: u32,
     rng: ThreadRng,
@@ -34,6 +35,21 @@ pub struct Grid {
     flowfield: FlowField,
     nticks: u32,
     lifetime: u32,
+    fields: Vec<FlowFieldFunction>,
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
+pub struct FlowFieldFunction {
+    name: &'static str,
+    func: fn(f64, f64) -> f64,
+}
+
+#[wasm_bindgen]
+impl FlowFieldFunction {
+    pub fn name(&self) -> String {
+        String::from(self.name)
+    }
 }
 
 impl Rgba {
@@ -57,7 +73,7 @@ impl Vec2D {
 }
 
 impl FlowField {
-    pub fn new(nparticles: u32, nsamples: u32) -> FlowField {
+    pub fn new(nparticles: u32, nsamples: u32, angle_func: fn(f64, f64) -> f64) -> FlowField {
         let mut rng = rand::thread_rng();
 
         let particles: Vec<Vec2D> = (0..nparticles)
@@ -68,12 +84,6 @@ impl FlowField {
             .collect();
 
         let lifetimes: Vec<f64> = (0..nparticles).map(|_| rng.gen::<f64>() * 100.0).collect();
-
-        // let angle_func = |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0)) * PI * 2.0;
-        // let angle_func = |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0;
-        // let angle_func = |x: f64, y: f64| (x / y) * PI * 2.0;
-        // let angle_func = |x: f64, y: f64| (x * y).ln() * PI * 2.0;
-        let angle_func = |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0;
 
         let velocities = (0..nsamples)
             .map(|x| {
@@ -91,7 +101,6 @@ impl FlowField {
         FlowField {
             particles: particles,
             lifetimes: lifetimes,
-            nparticles: nparticles,
             velocities: velocities,
             nsamples: nsamples,
             rng: rng,
@@ -123,13 +132,48 @@ impl FlowField {
 
 #[wasm_bindgen]
 impl Grid {
-    pub fn new(width: u32, height: u32, nparticles: u32, nsamples: u32, lifetime: u32) -> Grid {
+    pub fn new(
+        width: u32,
+        height: u32,
+        nparticles: u32,
+        nsamples: u32,
+        lifetime: u32,
+        func: usize,
+    ) -> Grid {
+        set_panic_hook();
 
         let pixels: Vec<Rgba> = (0..width * height)
             .map(|_| Rgba::from_u32(0x000000ff))
             .collect();
 
-        let field = FlowField::new(nparticles, nsamples);
+        let mut fields = Vec::new();
+
+        fields.push(FlowFieldFunction {
+            name: "x^2 + y^2",
+            func: |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0)) * PI * 2.0,
+        });
+
+        fields.push(FlowFieldFunction {
+            name: "x^2 + y^2 - x * y",
+            func: |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0,
+        });
+
+        fields.push(FlowFieldFunction {
+            name: "log(x * y)",
+            func: |x: f64, y: f64| (x * y).ln() * PI * 2.0,
+        });
+
+        fields.push(FlowFieldFunction {
+            name: "log(x^2 + y^2)",
+            func: |x: f64, y: f64| (x * y).ln() * PI * 2.0,
+        });
+
+        fields.push(FlowFieldFunction {
+            name: "x / y",
+            func: |x: f64, y: f64| (x / y) * PI * 2.0,
+        });
+
+        let field = FlowField::new(nparticles, nsamples, fields[func].func);
 
         Grid {
             width: width,
@@ -138,6 +182,31 @@ impl Grid {
             flowfield: field,
             nticks: 0,
             lifetime: lifetime,
+            fields: fields,
+        }
+    }
+
+    pub fn set_flow_function(&mut self, func: usize) {
+        let field = FlowField::new(
+            self.flowfield.particles.len() as u32,
+            self.flowfield.nsamples,
+            self.fields[func].func,
+        );
+
+        self.clear();
+
+        self.flowfield = field;
+    }
+
+    pub fn clear(&mut self) {
+        for i in 0..self.height {
+            for j in 0..self.width {
+                let idx = self.get_index(i, j);
+
+                self.pixels[idx].r = 0x00;
+                self.pixels[idx].g = 0x00;
+                self.pixels[idx].b = 0x00;
+            }
         }
     }
 
@@ -145,15 +214,7 @@ impl Grid {
         self.nticks += 1;
 
         if self.nticks % self.lifetime == 0 {
-            for i in 0..self.height {
-                for j in 0..self.width {
-                    let idx = self.get_index(i, j);
-
-                    self.pixels[idx].r = 0x00;
-                    self.pixels[idx].g = 0x00;
-                    self.pixels[idx].b = 0x00;
-                }
-            }
+            self.clear();
         }
 
         self.flowfield.tick();
@@ -196,6 +257,10 @@ impl Grid {
 
     pub fn pixels(&self) -> *const Rgba {
         self.pixels.as_ptr()
+    }
+
+    pub fn fields(&self) -> Vec<FlowFieldFunction> {
+        self.fields.clone()
     }
 
     fn get_index(&self, row: u32, col: u32) -> usize {
