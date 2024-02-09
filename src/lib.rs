@@ -165,7 +165,7 @@ impl Grid {
 
         fields.push(FlowFieldFunction {
             name: "log(x^2 + y^2)",
-            func: |x: f64, y: f64| (x * y).ln() * PI * 2.0,
+            func: |x: f64, y: f64| (x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0,
         });
 
         fields.push(FlowFieldFunction {
