@@ -18,6 +18,7 @@ pub struct FlowField {
     velocities: Vec<Vec<Vec2D>>,
     nsamples: u32,
     rng: ThreadRng,
+    max_lifetimes: f64,
 }
 
 pub struct Rgba {
@@ -73,7 +74,12 @@ impl Vec2D {
 }
 
 impl FlowField {
-    pub fn new(nparticles: u32, nsamples: u32, angle_func: fn(f64, f64) -> f64) -> FlowField {
+    pub fn new(
+        nparticles: u32,
+        nsamples: u32,
+        angle_func: fn(f64, f64) -> f64,
+        max_lifetimes: f64,
+    ) -> FlowField {
         let mut rng = rand::thread_rng();
 
         let particles: Vec<Vec2D> = (0..nparticles)
@@ -83,7 +89,9 @@ impl FlowField {
             })
             .collect();
 
-        let lifetimes: Vec<f64> = (0..nparticles).map(|_| rng.gen::<f64>() * 100.0).collect();
+        let lifetimes: Vec<f64> = (0..nparticles)
+            .map(|_| rng.gen::<f64>() * max_lifetimes)
+            .collect();
 
         let velocities = (0..nsamples)
             .map(|x| {
@@ -104,6 +112,7 @@ impl FlowField {
             velocities: velocities,
             nsamples: nsamples,
             rng: rng,
+            max_lifetimes: max_lifetimes,
         }
     }
 
@@ -114,7 +123,7 @@ impl FlowField {
             if self.lifetimes[i] <= 0.0 {
                 self.particles[i].x = self.rng.gen::<f64>();
                 self.particles[i].y = self.rng.gen::<f64>();
-                self.lifetimes[i] = self.rng.gen::<f64>() * 100.0;
+                self.lifetimes[i] = self.rng.gen::<f64>() * self.max_lifetimes;
                 continue;
             }
 
@@ -139,6 +148,7 @@ impl Grid {
         nsamples: u32,
         lifetime: u32,
         func: usize,
+        max_lifetimes: u32,
     ) -> Grid {
         set_panic_hook();
 
@@ -173,7 +183,12 @@ impl Grid {
             func: |x: f64, y: f64| (x / y) * PI * 2.0,
         });
 
-        let field = FlowField::new(nparticles, nsamples, fields[func].func);
+        let field = FlowField::new(
+            nparticles,
+            nsamples,
+            fields[func].func,
+            f64::from(max_lifetimes),
+        );
 
         Grid {
             width: width,
@@ -186,16 +201,28 @@ impl Grid {
         }
     }
 
-    pub fn set_flow_function(&mut self, func: usize) {
+    pub fn set_flow_params(
+        &mut self,
+        nparticles: u32,
+        nsamples: u32,
+        func: usize,
+        max_lifetimes: u32,
+    ) {
         let field = FlowField::new(
-            self.flowfield.particles.len() as u32,
-            self.flowfield.nsamples,
+            nparticles,
+            nsamples,
             self.fields[func].func,
+            f64::from(max_lifetimes),
         );
 
         self.clear();
 
         self.flowfield = field;
+    }
+
+    pub fn set_lifetime(&mut self, lifetime: u32) {
+        self.lifetime = lifetime;
+        self.nticks = 0;
     }
 
     pub fn clear(&mut self) {
