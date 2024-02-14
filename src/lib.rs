@@ -12,13 +12,17 @@ pub struct Vec2D {
     y: f64,
 }
 
+pub struct Particle {
+    position: Vec2D,
+    lifetime: f64,
+}
+
 pub struct FlowField {
-    particles: Vec<Vec2D>,
-    lifetimes: Vec<f64>,
+    particles: Vec<Particle>,
     velocities: Vec<Vec<Vec2D>>,
     nsamples: u32,
     rng: ThreadRng,
-    max_lifetimes: f64,
+    max_particle_lifetime: f64,
 }
 
 pub struct Rgba {
@@ -35,7 +39,7 @@ pub struct Grid {
     pixels: Vec<Rgba>,
     flowfield: FlowField,
     nticks: u32,
-    lifetime: u32,
+    grid_lifetime: u32,
     fields: Vec<FlowFieldFunction>,
 }
 
@@ -78,28 +82,27 @@ impl FlowField {
         nparticles: u32,
         nsamples: u32,
         angle_func: fn(f64, f64) -> f64,
-        max_lifetimes: f64,
+        max_lifetime: f64,
     ) -> FlowField {
         let mut rng = rand::thread_rng();
 
-        let particles: Vec<Vec2D> = (0..nparticles)
-            .map(|_| Vec2D {
-                x: rng.gen::<f64>(),
-                y: rng.gen::<f64>(),
+        let particles: Vec<Particle> = (0..nparticles)
+            .map(|_| Particle {
+                position: Vec2D {
+                    x: rng.gen::<f64>(),
+                    y: rng.gen::<f64>(),
+                },
+                lifetime: rng.gen::<f64>() * max_lifetime,
             })
             .collect();
 
-        let lifetimes: Vec<f64> = (0..nparticles)
-            .map(|_| rng.gen::<f64>() * max_lifetimes)
-            .collect();
-
         let velocities = (0..nsamples)
-            .map(|x| {
+            .map(|i| {
                 (0..nsamples)
-                    .map(|y| {
+                    .map(|j| {
                         Vec2D::from_angle(angle_func(
-                            f64::from(x) / f64::from(nsamples),
-                            f64::from(y) / f64::from(nsamples),
+                            f64::from(i) / f64::from(nsamples),
+                            f64::from(j) / f64::from(nsamples),
                         ))
                     })
                     .collect()
@@ -108,33 +111,32 @@ impl FlowField {
 
         FlowField {
             particles: particles,
-            lifetimes: lifetimes,
             velocities: velocities,
             nsamples: nsamples,
             rng: rng,
-            max_lifetimes: max_lifetimes,
+            max_particle_lifetime: max_lifetime,
         }
     }
 
     pub fn tick(&mut self) {
-        for i in 0..self.particles.len() {
-            self.lifetimes[i] -= 1.0;
+        for p in self.particles.iter_mut() {
+            p.lifetime -= 1.0;
 
-            if self.lifetimes[i] <= 0.0 {
-                self.particles[i].x = self.rng.gen::<f64>();
-                self.particles[i].y = self.rng.gen::<f64>();
-                self.lifetimes[i] = self.rng.gen::<f64>() * self.max_lifetimes;
+            // Reset particle to a new random position
+            if p.lifetime <= 0.0 {
+                p.position.x = self.rng.gen::<f64>();
+                p.position.y = self.rng.gen::<f64>();
+                p.lifetime = self.rng.gen::<f64>() * self.max_particle_lifetime;
                 continue;
             }
 
-            let px = self.particles[i].x;
-            let py = self.particles[i].y;
+            let i = ((p.position.x * f64::from(self.nsamples)).floor() as usize)
+                % self.velocities.len();
+            let j = ((p.position.y * f64::from(self.nsamples)).floor() as usize)
+                % self.velocities.len();
 
-            let x = ((px * f64::from(self.nsamples)).floor() as usize) % self.velocities.len();
-            let y = ((py * f64::from(self.nsamples)).floor() as usize) % self.velocities.len();
-
-            self.particles[i].x = (px + 0.005 * self.velocities[x][y].x).clamp(0.0, 1.0);
-            self.particles[i].y = (py + 0.005 * self.velocities[x][y].y).clamp(0.0, 1.0);
+            p.position.x = (p.position.x + 0.005 * self.velocities[i][j].x).clamp(0.0, 1.0);
+            p.position.y = (p.position.y + 0.005 * self.velocities[i][j].y).clamp(0.0, 1.0);
         }
     }
 }
@@ -148,7 +150,7 @@ impl Grid {
         nsamples: u32,
         lifetime: u32,
         func: usize,
-        max_lifetimes: u32,
+        max_lifetime: u32,
     ) -> Grid {
         set_panic_hook();
 
@@ -187,7 +189,7 @@ impl Grid {
             nparticles,
             nsamples,
             fields[func].func,
-            f64::from(max_lifetimes),
+            f64::from(max_lifetime),
         );
 
         Grid {
@@ -196,7 +198,7 @@ impl Grid {
             pixels: pixels,
             flowfield: field,
             nticks: 0,
-            lifetime: lifetime,
+            grid_lifetime: lifetime,
             fields: fields,
         }
     }
@@ -206,13 +208,13 @@ impl Grid {
         nparticles: u32,
         nsamples: u32,
         func: usize,
-        max_lifetimes: u32,
+        max_lifetime: u32,
     ) {
         let field = FlowField::new(
             nparticles,
             nsamples,
             self.fields[func].func,
-            f64::from(max_lifetimes),
+            f64::from(max_lifetime),
         );
 
         self.clear();
@@ -220,8 +222,8 @@ impl Grid {
         self.flowfield = field;
     }
 
-    pub fn set_lifetime(&mut self, lifetime: u32) {
-        self.lifetime = lifetime;
+    pub fn set_grid_lifetime(&mut self, lifetime: u32) {
+        self.grid_lifetime = lifetime;
         self.nticks = 0;
     }
 
@@ -240,7 +242,7 @@ impl Grid {
     pub fn tick(&mut self) {
         self.nticks += 1;
 
-        if self.nticks % self.lifetime == 0 {
+        if self.nticks % self.grid_lifetime == 0 {
             self.clear();
         }
 
@@ -248,8 +250,8 @@ impl Grid {
 
         for i in 0..self.flowfield.particles.len() {
             let p = &self.flowfield.particles[i];
-            let xc = (p.x * f64::from(self.width)).floor() as u32;
-            let yc = (p.y * f64::from(self.height)).floor() as u32;
+            let xc = (p.position.x * f64::from(self.width)).floor() as u32;
+            let yc = (p.position.y * f64::from(self.height)).floor() as u32;
 
             self.circle(xc, yc, 1);
         }
