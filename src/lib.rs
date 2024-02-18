@@ -1,10 +1,11 @@
+mod fields;
 mod utils;
 
 use rand::prelude::*;
-use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
+use crate::fields::FIELDS;
 use crate::utils::set_panic_hook;
 
 #[derive(Debug)]
@@ -43,7 +44,7 @@ pub struct Grid {
     flowfield: FlowField,
     nticks: u32,
     grid_lifetime: u32,
-    fields: Vec<FlowFieldFunction>,
+    fields: [FlowFieldFunction; FIELDS.len()],
 }
 
 #[wasm_bindgen]
@@ -127,9 +128,10 @@ impl FlowField {
             .map(|i| {
                 (0..nsamples)
                     .map(|j| {
+                        // The offset here is needed to make the picture symmetric with a low number of samples.
                         let mut v = (flow_field_function.func)(
-                            f64::from(i) / f64::from(nsamples),
-                            f64::from(j) / f64::from(nsamples),
+                            (f64::from(i) + 0.5) / f64::from(nsamples),
+                            (f64::from(j) + 0.5) / f64::from(nsamples),
                         );
                         v.mul(dt);
                         v
@@ -148,6 +150,8 @@ impl FlowField {
     }
 
     pub fn tick(&mut self) {
+        let n = f64::from(self.nsamples);
+
         for p in self.particles.iter_mut() {
             p.lifetime -= 1.0;
 
@@ -158,10 +162,8 @@ impl FlowField {
                 continue;
             }
 
-            let i = ((p.position.x * f64::from(self.nsamples)).floor() as usize)
-                % self.velocities.len();
-            let j = ((p.position.y * f64::from(self.nsamples)).floor() as usize)
-                % self.velocities.len();
+            let i = (p.position.x * n).clamp(0.0, n - 1.0).floor() as usize;
+            let j = (p.position.y * n).clamp(0.0, n - 1.0).floor() as usize;
 
             p.position.add(&self.velocities[i][j]);
             p.position.clamp(0.0, 1.0);
@@ -186,65 +188,9 @@ impl Grid {
             .map(|_| Rgba::from_u32(0x000000ff))
             .collect();
 
-        let mut fields = Vec::new();
+        // let fields = FIELDS.to_vec();
 
-        fields.push(FlowFieldFunction {
-            name: "x^2 + y^2",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((x.powf(2.0) + y.powf(2.0)) * PI * 2.0).cos(),
-                y: ((x.powf(2.0) + y.powf(2.0)) * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "x^2 + y^2 - x * y",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0).cos(),
-                y: ((x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "log(x * y)",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((x * y).ln() * PI * 2.0).cos(),
-                y: ((x * y).ln() * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "log(x^2 + y^2)",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0).cos(),
-                y: ((x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "x / y",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((x / y) * PI * 2.0).cos(),
-                y: ((x / y) * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "exp(x^2 + y^2)",
-            func: |x: f64, y: f64| Vec2D {
-                x: ((-(5.0 * x).powf(2.0) + (5.0 * y).powf(2.0)).exp() * PI * 2.0).cos(),
-                y: ((-(5.0 * x).powf(2.0) + (5.0 * y).powf(2.0)).exp() * PI * 2.0).sin(),
-            },
-        });
-
-        fields.push(FlowFieldFunction {
-            name: "grad((x^2 + y^2)^2 - 1.5 * (x^2 + y^2))",
-            func: |x: f64, y: f64| Vec2D {
-                x: 4.0 * x * (x.powf(2.0) + y.powf(2.0)) - 3.0 * x,
-                y: 4.0 * y * (x.powf(2.0) + y.powf(2.0)) - 3.0 * y,
-            },
-        });
-
-        let field = FlowField::new(nparticles, nsamples, &fields[func], f64::from(max_lifetime));
+        let field = FlowField::new(nparticles, nsamples, &FIELDS[func], f64::from(max_lifetime));
 
         Grid {
             width: width,
@@ -253,7 +199,7 @@ impl Grid {
             flowfield: field,
             nticks: 0,
             grid_lifetime: lifetime,
-            fields: fields,
+            fields: FIELDS,
         }
     }
 
@@ -343,7 +289,7 @@ impl Grid {
     }
 
     pub fn fields(&self) -> Vec<FlowFieldFunction> {
-        self.fields.clone()
+        self.fields.to_vec()
     }
 
     fn get_index(&self, row: u32, col: u32) -> usize {
