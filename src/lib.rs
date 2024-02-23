@@ -20,7 +20,7 @@ pub struct Particle {
     lifetime: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rgba {
     r: u8,
     g: u8,
@@ -44,18 +44,18 @@ pub struct Grid {
     flowfield: FlowField,
     nticks: u32,
     grid_lifetime: u32,
-    fields: [FlowFieldFunction; FIELDS.len()],
+    fields: [VectorField2D; FIELDS.len()],
 }
 
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
-pub struct FlowFieldFunction {
+pub struct VectorField2D {
     name: &'static str,
     func: fn(f64, f64) -> Vec2D,
 }
 
 #[wasm_bindgen]
-impl FlowFieldFunction {
+impl VectorField2D {
     pub fn name(&self) -> String {
         String::from(self.name)
     }
@@ -111,7 +111,7 @@ impl FlowField {
     pub fn new(
         nparticles: u32,
         nsamples: u32,
-        flow_field_function: &FlowFieldFunction,
+        field: &VectorField2D,
         max_lifetime: f64,
     ) -> FlowField {
         let mut rng = rand::thread_rng();
@@ -129,7 +129,7 @@ impl FlowField {
                 (0..nsamples)
                     .map(|j| {
                         // The offset here is needed to make the picture symmetric with a low number of samples.
-                        let mut v = (flow_field_function.func)(
+                        let mut v = (field.func)(
                             (f64::from(i) + 0.5) / f64::from(nsamples),
                             (f64::from(j) + 0.5) / f64::from(nsamples),
                         );
@@ -179,18 +179,19 @@ impl Grid {
         nparticles: u32,
         nsamples: u32,
         lifetime: u32,
-        func: usize,
+        field_id: usize,
         max_lifetime: u32,
     ) -> Grid {
         set_panic_hook();
 
-        let pixels: Vec<Rgba> = (0..width * height)
-            .map(|_| Rgba::from_u32(0x000000ff))
-            .collect();
+        let pixels = vec![Rgba::from_u32(0x000000ff); (width * height) as usize];
 
-        // let fields = FIELDS.to_vec();
-
-        let field = FlowField::new(nparticles, nsamples, &FIELDS[func], f64::from(max_lifetime));
+        let field = FlowField::new(
+            nparticles,
+            nsamples,
+            &FIELDS[field_id],
+            f64::from(max_lifetime),
+        );
 
         Grid {
             width: width,
@@ -207,13 +208,13 @@ impl Grid {
         &mut self,
         nparticles: u32,
         nsamples: u32,
-        func: usize,
+        field_id: usize,
         max_lifetime: u32,
     ) {
         let field = FlowField::new(
             nparticles,
             nsamples,
-            &self.fields[func],
+            &self.fields[field_id],
             f64::from(max_lifetime),
         );
 
@@ -288,7 +289,7 @@ impl Grid {
         self.pixels.as_ptr()
     }
 
-    pub fn fields(&self) -> Vec<FlowFieldFunction> {
+    pub fn fields(&self) -> Vec<VectorField2D> {
         self.fields.to_vec()
     }
 

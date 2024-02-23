@@ -1,44 +1,44 @@
 use std::f64::consts::PI;
 
-use crate::{FlowFieldFunction, Vec2D};
+use crate::{Vec2D, VectorField2D};
 
-pub const FIELDS: [FlowFieldFunction; 10] = [
-    FlowFieldFunction {
+pub const FIELDS: [VectorField2D; 10] = [
+    VectorField2D {
         name: "{ cos(2*pi*r^2), sin(2*pi*r^2) }",
         func: |x: f64, y: f64| Vec2D {
             x: ((x.powf(2.0) + y.powf(2.0)) * PI * 2.0).cos(),
             y: ((x.powf(2.0) + y.powf(2.0)) * PI * 2.0).sin(),
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "{ cos(2*pi*r^2), sin(2*pi*r^2) }",
         func: |x: f64, y: f64| Vec2D {
             x: ((x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0).cos(),
             y: ((x.powf(2.0) + y.powf(2.0) - x * y) * PI * 2.0).sin(),
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "{ cos(2*pi*log(x*y)), sin(2*pi*sin(x*y)) }",
         func: |x: f64, y: f64| Vec2D {
             x: ((x * y).ln() * PI * 2.0).cos(),
             y: ((x * y).ln() * PI * 2.0).sin(),
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "{ cos(2*pi*log(r^2)), sin(2*pi*log(r^2)) }",
         func: |x: f64, y: f64| Vec2D {
             x: ((x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0).cos(),
             y: ((x.powf(2.0) + y.powf(2.0)).ln() * PI * 2.0).sin(),
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "{ cos(2*pi*x/y), sin(2*pi*x/y) }",
         func: |x: f64, y: f64| Vec2D {
             x: ((x / y) * PI * 2.0).cos(),
             y: ((x / y) * PI * 2.0).sin(),
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "{ cos(2*pi*exp(-(3*x)^2 + (3*y)^2)), sin(2*pi*exp(-(3*x)^2 + (3*y)^2)) }",
         func: |x: f64, y: f64| {
             let x = 3.0 * x;
@@ -50,7 +50,7 @@ pub const FIELDS: [FlowFieldFunction; 10] = [
             }
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "grad((x^2 + y^2)^2 - 1.5 * (x^2 + y^2))",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
@@ -62,7 +62,7 @@ pub const FIELDS: [FlowFieldFunction; 10] = [
             }
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "grad(sin(x^2 + y^2))",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
@@ -74,7 +74,7 @@ pub const FIELDS: [FlowFieldFunction; 10] = [
             }
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "grad(sin(x^2 + y^2) * exp(-(x^2 + y^2) / 2 / pi))",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
@@ -87,7 +87,7 @@ pub const FIELDS: [FlowFieldFunction; 10] = [
             }
         },
     },
-    FlowFieldFunction {
+    VectorField2D {
         name: "grad(log(x^2 / y^2 + 1))",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
