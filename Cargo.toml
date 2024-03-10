@@ -1,5 +1,5 @@
 [package]
-name = "rust-wasm-playground"
+name = "rwff"
 version = "0.1.0"
 authors = ["Matthias Volk <mv@infrablue.org>"]
 edition = "2018"

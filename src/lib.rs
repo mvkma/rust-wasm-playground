@@ -51,6 +51,7 @@ pub struct Grid {
 #[derive(Debug, Clone)]
 pub struct VectorField2D {
     name: &'static str,
+    latex: &'static str,
     func: fn(f64, f64) -> Vec2D,
 }
 
@@ -58,6 +59,10 @@ pub struct VectorField2D {
 impl VectorField2D {
     pub fn name(&self) -> String {
         String::from(self.name)
+    }
+
+    pub fn latex(&self) -> String {
+        String::from(self.latex)
     }
 }
 
