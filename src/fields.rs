@@ -45,7 +45,7 @@ pub const FIELDS: [VectorField2D; 10] = [
     },
     VectorField2D {
         name: "{ cos(2*pi*exp(-(3*x)^2 + (3*y)^2)), sin(2*pi*exp(-(3*x)^2 + (3*y)^2)) }",
-        latex: "",
+        latex: "\\left(\\cos(2\\pi \\exp(-(3x_0)^2 + (3x_1)^2)), \\sin(2\\pi \\exp(-(3x_0)^2 + (3x_1)^2))\\right)",
         func: |x: f64, y: f64| {
             let x = 3.0 * x;
             let y = 3.0 * y;
@@ -58,7 +58,7 @@ pub const FIELDS: [VectorField2D; 10] = [
     },
     VectorField2D {
         name: "grad((x^2 + y^2)^2 - 1.5 * (x^2 + y^2))",
-        latex: "",
+        latex: "\\operatorname{grad} \\left((x_0^2 + x_1^2)^2 - \\frac{3}{2} (x_0^2 + x_1^2)\\right)",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
             let x = (x - 0.5) * 2.5;
@@ -71,7 +71,7 @@ pub const FIELDS: [VectorField2D; 10] = [
     },
     VectorField2D {
         name: "grad(sin(x^2 + y^2))",
-        latex: "",
+        latex: "\\operatorname{grad} \\sin(x_0^2 + x_1^2)",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
             let x = (x - 0.5) * 10.0;
@@ -84,7 +84,7 @@ pub const FIELDS: [VectorField2D; 10] = [
     },
     VectorField2D {
         name: "grad(sin(x^2 + y^2) * exp(-(x^2 + y^2) / 2 / pi))",
-        latex: "",
+        latex: "\\operatorname{grad} \\left(\\sin(x_0^2 + x_1^2) \\exp(-(x_0^2 + x_1^2) / 2 / \\pi)\\right)",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
             let x = (x - 0.5) * 8.0;
@@ -98,7 +98,7 @@ pub const FIELDS: [VectorField2D; 10] = [
     },
     VectorField2D {
         name: "grad(log(x^2 / y^2 + 1))",
-        latex: "",
+        latex: "\\operatorname{grad} \\left(\\log(x_0^2 / x_1^2 + 1)\\right)",
         func: |x: f64, y: f64| {
             // TODO: Proper scaling function and translations
             let x = (x - 0.5) * 6.0;
